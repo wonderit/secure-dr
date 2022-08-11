@@ -26,7 +26,7 @@ class VGG(nn.Module):
             # nn.Dropout(),
             nn.Linear(512, 256),
             nn.ReLU(True),
-            nn.Linear(256, 5),
+            nn.Linear(256, 1),
         )
          # Initialize weights
         for m in self.modules():

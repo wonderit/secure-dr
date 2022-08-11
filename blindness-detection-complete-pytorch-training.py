@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-
-
 import numpy as np # linear algebra
 import pandas as pd # data processing
 import matplotlib.pyplot as plt # Plotting
@@ -11,22 +9,18 @@ import seaborn as sns # Plotting
 from PIL import Image
 import cv2
 
-# Import PyTorch and useful fuctions
+# Import PyTorch and useful functions
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader, Dataset
 import torchvision.transforms as transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 import torchvision
 import torch.optim as optim
-import torchvision.models as models # Pre-Trained models
 
 # Import useful sklearn functions
-import sklearn
 from sklearn.metrics import cohen_kappa_score, accuracy_score
 
-import time
 from tqdm import tqdm
 import vgg
 import os
@@ -36,15 +30,8 @@ base_dir = "./aptos2019-blindness-detection/"
 
 # # Loading Data + EDA
 
-# In[ ]:
-
-
 train_csv = pd.read_csv('./aptos2019-blindness-detection/train.csv')
 test_csv = pd.read_csv('./aptos2019-blindness-detection/test.csv')
-
-
-# In[ ]:
-
 
 print('Train Size = {}'.format(len(train_csv)))
 print('Public Test Size = {}'.format(len(test_csv)))
@@ -61,33 +48,32 @@ sns.barplot(counts.index, counts.values, alpha=0.8, palette='bright')
 plt.title('Distribution of Output Classes')
 plt.ylabel('Number of Occurrences', fontsize=12)
 plt.xlabel('Target Classes', fontsize=12)
-plt.show()
+plt.savefig('dist_class.png')
 
-
-fig = plt.figure(figsize=(30, 6))
-# display 20 images
-train_imgs = os.listdir(base_dir+"/train_images")
-for idx, img in enumerate(np.random.choice(train_imgs, 16)):
-    ax = fig.add_subplot(2, 16//2, idx+1, xticks=[], yticks=[])
-    im = Image.open(base_dir+"/train_images/" + img)
-    plt.imshow(im)
-    lab = train_csv.loc[train_csv['id_code'] == img.split('.')[0], 'diagnosis'].values[0]
-    ax.set_title('Severity: %s'%lab)
-
-
-# # Visualizing Test Set
-
-fig = plt.figure(figsize=(30, 6))
-# display 20 images
-test_imgs = os.listdir(base_dir+"/test_images")
-for idx, img in enumerate(np.random.choice(test_imgs, 16)):
-    ax = fig.add_subplot(2, 16//2, idx+1, xticks=[], yticks=[])
-    im = Image.open(base_dir+"/test_images/" + img)
-    plt.imshow(im)
-
+#
+# fig = plt.figure(figsize=(30, 6))
+# # display 20 images
+# train_imgs = os.listdir(base_dir+"/train_images")
+# for idx, img in enumerate(np.random.choice(train_imgs, 16)):
+#     ax = fig.add_subplot(2, 16//2, idx+1, xticks=[], yticks=[])
+#     im = Image.open(base_dir+"/train_images/" + img)
+#     plt.imshow(im)
+#     lab = train_csv.loc[train_csv['id_code'] == img.split('.')[0], 'diagnosis'].values[0]
+#     ax.set_title('Severity: %s'%lab)
+#
+#
+# # # Visualizing Test Set
+#
+# fig = plt.figure(figsize=(30, 6))
+# # display 20 images
+# test_imgs = os.listdir(base_dir+"/test_images")
+# for idx, img in enumerate(np.random.choice(test_imgs, 16)):
+#     ax = fig.add_subplot(2, 16//2, idx+1, xticks=[], yticks=[])
+#     im = Image.open(base_dir+"/test_images/" + img)
+#     plt.savefig('test_img.png')
+#     # plt.imshow(im)
 
 # # Data Processing
-
 # Our own custom class for datasets
 class CreateDataset(Dataset):
     def __init__(self, df_data, data_dir = './', transform=None):
@@ -154,11 +140,11 @@ print('model', model)
 # model.load_state_dict(torch.load("./pretrained-models/resnet101-5d3b4d8f.pth"))
 # for param in model.parameters():
 #     param.requires_grad = False
-model.avg_pool = nn.AdaptiveAvgPool2d(output_size=(1,1))
-model.fc = nn.Sequential(
-                nn.Linear(in_features=2048, out_features=1024, bias=True),
-                nn.Linear(in_features=1024, out_features=1, bias=True)
-            )
+# model.avg_pool = nn.AdaptiveAvgPool2d(output_size=(1,1))
+# model.fc = nn.Sequential(
+#                 nn.Linear(in_features=2048, out_features=1024, bias=True),
+#                 nn.Linear(in_features=1024, out_features=1, bias=True)
+#             )
 
 
 # check if CUDA is available
@@ -170,33 +156,22 @@ else:
     print('CUDA is available!  Training on GPU ...')
     model.cuda()
 
-
 # Trainable Parameters
 pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 print("Number of trainable parameters: \n{}".format(pytorch_total_params))
 
-
 # # Training (Fine Tuning) and Validation
-
-
 # specify loss function (categorical cross-entropy loss)
 criterion = nn.MSELoss()
 
 # specify optimizer
 optimizer = optim.Adam(model.parameters(), lr=0.00015)
-
-
-# In[ ]:
-
+# optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-# In[ ]:
-
-
 # number of epochs to train the model
-n_epochs = 15
+n_epochs = 10
 
 valid_loss_min = np.Inf
 
@@ -370,6 +345,7 @@ def predict(testloader):
         data, target = data.cuda(), target.cuda()
         output = model(data)
         pr = output.detach().cpu().numpy()
+        # print(pr.shape)
         for i in pr:
             preds.append(i.item())
             
@@ -382,89 +358,28 @@ def predict(testloader):
 
 
 preds1 = np.array(predict(testloader=test_loader))
-
-
-# In[ ]:
-
-
 preds2 = np.array(predict(testloader=test_loader))
-
-
-# In[ ]:
-
-
 preds3 = np.array(predict(testloader=test_loader))
-
-
-# In[ ]:
-
-
 preds4 = np.array(predict(testloader=test_loader))
-
-
-# In[ ]:
-
-
 preds5 = np.array(predict(testloader=test_loader))
-
-
-# In[ ]:
-
-
 preds6 = np.array(predict(testloader=test_loader))
-
-
-# In[ ]:
-
-
 preds7 = np.array(predict(testloader=test_loader))
-
-
-# In[ ]:
-
-
 preds8 = np.array(predict(testloader=test_loader))
-
-
-# In[ ]:
-
 
 preds = (preds1 + preds2 + preds3 + preds4 + 
          preds5 + preds6 + preds7 + preds8)/8.0
 
-
-# In[ ]:
-
-
 preds = round_off_preds(preds)
 
-
 # # Generating Submission File
-
-# In[ ]:
-
-
 sample_sub = pd.read_csv('./aptos2019-blindness-detection/sample_submission.csv')
-
-
-# In[ ]:
-
 
 sample_sub.diagnosis = preds
 sample_sub.diagnosis = sample_sub['diagnosis'].astype(int)
 
-
-# In[ ]:
-
-
 sample_sub.head()
 
-
-# In[ ]:
-
-
 sample_sub.to_csv('submission.csv', index=False)
-
 
 # #### Give this kernel an upvote if you found this helpful.
 # 

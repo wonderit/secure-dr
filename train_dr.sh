@@ -1,0 +1,1 @@
+nohup python blindness-detection-complete-pytorch-training.py > train_dr.log &
