@@ -22,9 +22,13 @@ import torch.optim as optim
 from sklearn.metrics import cohen_kappa_score, accuracy_score
 
 from tqdm import tqdm
-import vgg
+import alexnet
+import lenet
 import os
 print(os.listdir("."))
+
+model_name = 'lenet_224'
+image_width = 224
 base_dir = "./aptos2019-blindness-detection/"
 
 
@@ -50,28 +54,6 @@ plt.ylabel('Number of Occurrences', fontsize=12)
 plt.xlabel('Target Classes', fontsize=12)
 plt.savefig('dist_class.png')
 
-#
-# fig = plt.figure(figsize=(30, 6))
-# # display 20 images
-# train_imgs = os.listdir(base_dir+"/train_images")
-# for idx, img in enumerate(np.random.choice(train_imgs, 16)):
-#     ax = fig.add_subplot(2, 16//2, idx+1, xticks=[], yticks=[])
-#     im = Image.open(base_dir+"/train_images/" + img)
-#     plt.imshow(im)
-#     lab = train_csv.loc[train_csv['id_code'] == img.split('.')[0], 'diagnosis'].values[0]
-#     ax.set_title('Severity: %s'%lab)
-#
-#
-# # # Visualizing Test Set
-#
-# fig = plt.figure(figsize=(30, 6))
-# # display 20 images
-# test_imgs = os.listdir(base_dir+"/test_images")
-# for idx, img in enumerate(np.random.choice(test_imgs, 16)):
-#     ax = fig.add_subplot(2, 16//2, idx+1, xticks=[], yticks=[])
-#     im = Image.open(base_dir+"/test_images/" + img)
-#     plt.savefig('test_img.png')
-#     # plt.imshow(im)
 
 # # Data Processing
 # Our own custom class for datasets
@@ -97,7 +79,7 @@ class CreateDataset(Dataset):
 # In[ ]:
 transforms = transforms.Compose([
     transforms.ToPILImage(),
-    transforms.Resize((32, 32)),
+    transforms.Resize((image_width, image_width)),
     transforms.RandomHorizontalFlip(p=0.4),
     #transforms.ColorJitter(brightness=2, contrast=2),
     transforms.ToTensor(),
@@ -132,20 +114,15 @@ train_loader = DataLoader(train_data, batch_size=batch_size, sampler=train_sampl
 valid_loader = DataLoader(train_data, batch_size=batch_size, sampler=valid_sampler)
 
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 # # Define Model Architecture
-model = vgg.__dict__['vgg16']()
+# model = vgg.__dict__['vgg16']()
+# model_name = 'alexnet'
+# model = alexnet.AlexNet().to(device)
+
+model = lenet.LeNet().to(device)
 print('model', model)
-
-# model = models.resnet101(pretrained=False)
-# model.load_state_dict(torch.load("./pretrained-models/resnet101-5d3b4d8f.pth"))
-# for param in model.parameters():
-#     param.requires_grad = False
-# model.avg_pool = nn.AdaptiveAvgPool2d(output_size=(1,1))
-# model.fc = nn.Sequential(
-#                 nn.Linear(in_features=2048, out_features=1024, bias=True),
-#                 nn.Linear(in_features=1024, out_features=1, bias=True)
-#             )
-
 
 # check if CUDA is available
 train_on_gpu = torch.cuda.is_available()
@@ -165,10 +142,8 @@ print("Number of trainable parameters: \n{}".format(pytorch_total_params))
 criterion = nn.MSELoss()
 
 # specify optimizer
-optimizer = optim.Adam(model.parameters(), lr=0.00015)
-# optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# optimizer = optim.Adam(model.parameters(), lr=0.00015)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # number of epochs to train the model
 n_epochs = 15
@@ -252,7 +227,7 @@ for epoch in range(1, n_epochs+1):
         print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(
         valid_loss_min,
         valid_loss))
-        torch.save(model.state_dict(), 'best_model.pt')
+        torch.save(model.state_dict(), f'best_model_{model_name}.pt')
         valid_loss_min = valid_loss
 
 
@@ -267,7 +242,7 @@ plt.plot(valid_losses, label='Validation loss')
 plt.xlabel("Epochs")
 plt.ylabel("Loss")
 plt.legend(frameon=False)
-plt.savefig("learning-curve.png")
+plt.savefig(f"learning-curve-{model_name}.png")
 
 # In[ ]:
 
@@ -280,13 +255,13 @@ plt.legend("")
 plt.xlabel("Epochs")
 plt.ylabel("Kappa Score")
 plt.legend(frameon=False)
-plt.savefig("learning-curve-kappa.png")
+plt.savefig(f"learning-curve-kappa-{model_name}.png")
 
 
 # In[ ]:
 
 
-model.load_state_dict(torch.load('best_model.pt'))
+model.load_state_dict(torch.load(f'best_model_{model_name}.pt'))
 
 
 # # Inference
@@ -296,7 +271,7 @@ model.load_state_dict(torch.load('best_model.pt'))
 
 test_transforms = torchvision.transforms.Compose([
     torchvision.transforms.ToPILImage(),
-    torchvision.transforms.Resize((32, 32)),
+    torchvision.transforms.Resize((image_width, image_width)),
     #torchvision.transforms.ColorJitter(brightness=2, contrast=2),
     torchvision.transforms.RandomHorizontalFlip(p=0.5),
     torchvision.transforms.ToTensor(),
@@ -357,20 +332,22 @@ def predict(testloader):
 
 # In[ ]:
 
+#
+# preds1 = np.array(predict(testloader=test_loader))
+# preds2 = np.array(predict(testloader=test_loader))
+# preds3 = np.array(predict(testloader=test_loader))
+# preds4 = np.array(predict(testloader=test_loader))
+# preds5 = np.array(predict(testloader=test_loader))
+# preds6 = np.array(predict(testloader=test_loader))
+# preds7 = np.array(predict(testloader=test_loader))
+# preds8 = np.array(predict(testloader=test_loader))
+#
+# preds = (preds1 + preds2 + preds3 + preds4 +
+#          preds5 + preds6 + preds7 + preds8)/8.0
 
-preds1 = np.array(predict(testloader=test_loader))
-preds2 = np.array(predict(testloader=test_loader))
-preds3 = np.array(predict(testloader=test_loader))
-preds4 = np.array(predict(testloader=test_loader))
-preds5 = np.array(predict(testloader=test_loader))
-preds6 = np.array(predict(testloader=test_loader))
-preds7 = np.array(predict(testloader=test_loader))
-preds8 = np.array(predict(testloader=test_loader))
+# preds = round_off_preds(preds)
+preds = np.array(predict(testloader=test_loader))
 
-preds = (preds1 + preds2 + preds3 + preds4 + 
-         preds5 + preds6 + preds7 + preds8)/8.0
-
-preds = round_off_preds(preds)
 
 # # Generating Submission File
 sample_sub = pd.read_csv('./aptos2019-blindness-detection/sample_submission.csv')
@@ -380,7 +357,7 @@ sample_sub.diagnosis = sample_sub['diagnosis'].astype(int)
 
 sample_sub.head()
 
-sample_sub.to_csv('submission.csv', index=False)
+sample_sub.to_csv(f'submission_{model_name}.csv', index=False)
 
 # #### Give this kernel an upvote if you found this helpful.
 # 
