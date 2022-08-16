@@ -1,1 +1,1 @@
-nohup python train.py > train_alexnet.log &
+nohup python train.py -w 224 -c > train_comet_alex.log &

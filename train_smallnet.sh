@@ -1,0 +1,1 @@
+nohup python train.py -w 224 -c -m smallnet > train_comet_smallnet.log &
