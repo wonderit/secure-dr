@@ -23,9 +23,6 @@ if not os.path.exists(result_folder_name):
 dataset19 = pd.read_csv('./data/labels/trainLabels19.csv')
 print(dataset19)
 
-# check model
-
-
 # Visualizing Data
 names = ['Normal', 'Mild', 'Moderate', 'Severe', 'Proliferate DR']
 print(dataset19['diagnosis'].value_counts())
@@ -171,12 +168,12 @@ def display_training_curves(training, validation, title, subplot, fold):
 # - COMPILE AND TRAIN THE MODEL FOR EACH SPLIT
 # - PLOT THE TRAINING CURVES FOR EACH SPLIT
 
-BS = 32  # Batch size
+BS = 64  # Batch size
 accuracy = []
 
 ############ USING STRATIFIED K-FOLD CROSS VALIDATION TECHNIQUE ##########
 
-skf = StratifiedKFold(n_splits=5)
+skf = StratifiedKFold(n_splits=4)
 skf.get_n_splits(X, y)
 
 fold_no = 1
@@ -184,20 +181,20 @@ fold_no = 1
 for train, test in skf.split(X, y):
     # Design of CNN Model
     model = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(16, (3, 3), input_shape=(128, 128, 3), activation='relu', stride=1, padding=0),
+        tf.keras.layers.Conv2D(16, (3, 3), input_shape=(128, 128, 3), activation='relu'),
         tf.keras.layers.MaxPooling2D(2, 2),
 
-        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', stride=1, padding=0),
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
         tf.keras.layers.MaxPooling2D(2, 2),
 
-        # tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-        # tf.keras.layers.MaxPooling2D(2, 2),
-        #
-        # tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
-        # tf.keras.layers.MaxPooling2D(2, 2),
-        #
-        # tf.keras.layers.Conv2D(256, (3, 3), activation='relu'),
-        # tf.keras.layers.MaxPooling2D(2, 2),
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(2, 2),
+
+        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(2, 2),
+
+        tf.keras.layers.Conv2D(256, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(2, 2),
 
         tf.keras.layers.Flatten(),
         # tf.keras.layers.Dropout(0.2),

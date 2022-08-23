@@ -32,6 +32,7 @@ print(os.listdir("."))
 
 import argparse
 from comet_ml import Experiment
+import torchsummary
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-el", "--epoch_limit", help="Set epoch limit", type=int, default=15)
@@ -83,8 +84,10 @@ sns.barplot(counts.index, counts.values, alpha=0.8, palette='bright')
 plt.title('Distribution of Output Classes')
 plt.ylabel('Number of Occurrences', fontsize=12)
 plt.xlabel('Target Classes', fontsize=12)
-# plt.savefig('dist_class.png')
-experiment.log_figure('dist_class', figure=plt)
+if args.is_comet:
+    experiment.log_figure('dist_class', figure=plt)
+else:
+    plt.savefig('dist_class.png')
 
 
 # Data Processing
@@ -150,6 +153,7 @@ elif args.model_name == "smallnet":
     model = smallnet.SmallNet().to(device)
 
 print('model', model)
+torchsummary.summary(model, (3, 32, 32))
 
 # check if CUDA is available
 train_on_gpu = torch.cuda.is_available()
@@ -269,8 +273,11 @@ plt.plot(valid_losses, label='Validation loss')
 plt.xlabel("Epochs")
 plt.ylabel("Loss")
 plt.legend(frameon=False)
-# plt.savefig(f"learning-curve-{model_name}.png")
-experiment.log_figure(f'learning-curve-{model_type}', figure=plt)
+
+if args.is_comet:
+    experiment.log_figure(f'learning-curve-{model_type}', figure=plt)
+else:
+    plt.savefig(f"learning-curve-{model_name}.png")
 
 plt.cla()
 plt.plot(kappa_epoch, label='Val Kappa Score/Epochs')
@@ -278,8 +285,12 @@ plt.legend("")
 plt.xlabel("Epochs")
 plt.ylabel("Kappa Score")
 plt.legend(frameon=False)
-# plt.savefig(f"learning-curve-kappa-{model_name}.png")
-experiment.log_figure(f"learning-curve-kappa-{model_type}", figure=plt)
+
+
+if args.is_comet:
+    experiment.log_figure(f"learning-curve-kappa-{model_type}", figure=plt)
+else:
+    plt.savefig(f"learning-curve-kappa-{model_name}.png")
 
 
 model.load_state_dict(torch.load(f'best_model_{model_type}.pt'))
