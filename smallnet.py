@@ -58,7 +58,7 @@ class SmallNet(nn.Module):
         )
         self.classifier = nn.Sequential(
             # nn.Dropout(),
-            nn.Linear(13456, 100),
+            nn.Linear(400, 100),
             nn.ReLU(True),
             # nn.Linear(256, 256),
             # nn.ReLU(True),

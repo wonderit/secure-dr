@@ -1,1 +1,1 @@
-nohup python cnn.py > train_cnn.log &
+nohup python cnn.py -b 128 -n 5 -el 80 > train_cnn.log &

@@ -15,6 +15,22 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, \
     precision_recall_curve
 
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-el", "--epoch_limit", help="Set epoch limit", type=int, default=80)
+parser.add_argument("-li", "--log_interval", help="Set batch interval for log", type=int, default=5)
+parser.add_argument("-b", "--batch_size", help="Set batch size for log", type=int, default=32)
+parser.add_argument("-v", "--valid_size", help="Set validation size for log", type=float, default=0.1)
+parser.add_argument("-n", "--n_splits", help="Set validation size for log", type=int, default=3)
+parser.add_argument("-c", "--is_comet", help="Set isTest", action='store_true')
+parser.add_argument("-p", "--comet_project", help="Set project name", type=str, default='secure-dr-plaintext')
+parser.add_argument("-s", "--seed", help="Set random seed", type=int, default=1234)
+parser.add_argument("-m", "--model_name", help="model name(alex, lenet, resnet, vgg)", type=str, default='alexnet')
+parser.add_argument("-w", "--image_width", help="image width, height", type=int, default=32)
+
+args = parser.parse_args()
+
 result_folder_name = 'result'
 if not os.path.exists(result_folder_name):
     os.makedirs(result_folder_name)
@@ -78,12 +94,12 @@ print(dataset15['diagnosis'].value_counts())
 images = []
 for i, image_id in enumerate(tqdm(dataset19.id_code)):
     im = cv2.imread(f'./data/resized train 19/{image_id}.jpg')
-    im = cv2.resize(im, (128, 128))
+    im = cv2.resize(im, (args.image_width, args.image_width))
     images.append(im)
 
 for i, image_id in enumerate(tqdm(dataset15.id_code)):
     im = cv2.imread(f'./data/resized train 15/{image_id}.jpg')
-    im = cv2.resize(im, (128, 128))
+    im = cv2.resize(im, (args.image_width, args.image_width))
     images.append(im)
 
 # PREPROCESSING OF IMAGE DATA
@@ -98,7 +114,7 @@ def load_colorfilter(image, sigmaX=10):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     # image = crop_image_from_gray(image)
     # image = cv2.resize(image, (IMG_SIZE, IMG_SIZE))
-    image = cv2.addWeighted(image, 4, cv2.GaussianBlur(image, (0, 0), sigmaX), -4, 128)
+    image = cv2.addWeighted(image, 4, cv2.GaussianBlur(image, (0, 0), sigmaX), -4, args.image_width)
     return image
 
 
@@ -143,7 +159,7 @@ aug = ImageDataGenerator(rotation_range=0.2, width_shift_range=0.2, \
 # X_train.shape, X_valid.shape, y_train.shape, y_valid.shape
 #######################################################################################
 
-X, X_test, y, y_test = train_test_split(X, y, test_size=0.1, stratify=y)
+X, X_test, y, y_test = train_test_split(X, y, test_size=args.valid_size, stratify=y)
 X.shape, X_test.shape, y.shape, y_test.shape
 
 
@@ -171,40 +187,45 @@ def display_training_curves(training, validation, title, subplot, fold):
 # - COMPILE AND TRAIN THE MODEL FOR EACH SPLIT
 # - PLOT THE TRAINING CURVES FOR EACH SPLIT
 
-BS = 32  # Batch size
+BS = args.batch_size  # Batch size
 accuracy = []
 
 ############ USING STRATIFIED K-FOLD CROSS VALIDATION TECHNIQUE ##########
 
-skf = StratifiedKFold(n_splits=5)
+skf = StratifiedKFold(n_splits=args.n_splits)
 skf.get_n_splits(X, y)
 
 fold_no = 1
 
 for train, test in skf.split(X, y):
+    if fold_no > args.n_splits - 2:
+        continue
     # Design of CNN Model
     model = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(16, (3, 3), input_shape=(128, 128, 3), activation='relu', stride=1, padding=0),
+        tf.keras.layers.Conv2D(16, (3, 3), input_shape=(args.image_width, args.image_width, 3), activation='relu', strides=(1, 1), padding="valid"),
         tf.keras.layers.MaxPooling2D(2, 2),
 
-        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', stride=1, padding=0),
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
         tf.keras.layers.MaxPooling2D(2, 2),
 
-        # tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
+        tf.keras.layers.MaxPooling2D(2, 2),
+        #
+        # tf.keras.layers.Conv2D(32, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
         # tf.keras.layers.MaxPooling2D(2, 2),
         #
-        # tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
-        # tf.keras.layers.MaxPooling2D(2, 2),
-        #
-        # tf.keras.layers.Conv2D(256, (3, 3), activation='relu'),
+        # tf.keras.layers.Conv2D(256, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
         # tf.keras.layers.MaxPooling2D(2, 2),
 
         tf.keras.layers.Flatten(),
         # tf.keras.layers.Dropout(0.2),
-        tf.keras.layers.Dense(1024, activation='relu'),
+        tf.keras.layers.Dense(400, activation='relu'),
+        tf.keras.layers.Dense(250, activation='relu'),
         tf.keras.layers.Dense(5, activation='softmax')
-
     ])
+
+    if fold_no == 1:
+        print('model', model)
 
     # Compiling the model
     model.compile(optimizer=tf.keras.optimizers.Adam(lr=0.001), loss='sparse_categorical_crossentropy', metrics=['acc'])
@@ -212,7 +233,7 @@ for train, test in skf.split(X, y):
     # Training
     history = model.fit_generator(aug.flow(X[train], y[train], batch_size=BS),
                                   validation_data=(X[test], y[test]),
-                                  epochs=80, verbose=1)
+                                  epochs=args.epoch_limit, verbose=1)
 
     # Evaluate score
     acc = model.evaluate(X[test], y[test])

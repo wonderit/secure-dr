@@ -153,7 +153,7 @@ elif args.model_name == "smallnet":
     model = smallnet.SmallNet().to(device)
 
 print('model', model)
-torchsummary.summary(model, (3, 32, 32))
+torchsummary.summary(model, (3, args.image_width, args.image_width))
 
 # check if CUDA is available
 train_on_gpu = torch.cuda.is_available()
