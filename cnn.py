@@ -22,6 +22,7 @@ parser.add_argument("-el", "--epoch_limit", help="Set epoch limit", type=int, de
 parser.add_argument("-li", "--log_interval", help="Set batch interval for log", type=int, default=5)
 parser.add_argument("-b", "--batch_size", help="Set batch size for log", type=int, default=32)
 parser.add_argument("-v", "--valid_size", help="Set validation size for log", type=float, default=0.1)
+parser.add_argument("-lr", "--learning_rate", help="Set validation size for log", type=float, default=0.001)
 parser.add_argument("-n", "--n_splits", help="Set validation size for log", type=int, default=3)
 parser.add_argument("-c", "--is_comet", help="Set isTest", action='store_true')
 parser.add_argument("-p", "--comet_project", help="Set project name", type=str, default='secure-dr-plaintext')
@@ -41,6 +42,34 @@ print(dataset19)
 
 # check model
 
+# Design of CNN Model
+# model = tf.keras.Sequential([
+#     tf.keras.layers.Conv2D(16, (3, 3), input_shape=(args.image_width, args.image_width, 3), activation='relu',
+#                            strides=(1, 1), padding="valid"),
+#     # tf.keras.layers.MaxPooling2D(2, 2),
+#
+#     tf.keras.layers.Conv2D(32, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
+#     tf.keras.layers.MaxPooling2D(2, 2),
+#
+#     tf.keras.layers.Conv2D(32, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
+#     tf.keras.layers.Conv2D(32, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
+#     tf.keras.layers.MaxPooling2D(2, 2),
+#     #
+#     # tf.keras.layers.Conv2D(32, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
+#     # tf.keras.layers.MaxPooling2D(2, 2),
+#     #
+#     # tf.keras.layers.Conv2D(256, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
+#     # tf.keras.layers.MaxPooling2D(2, 2),
+#
+#     tf.keras.layers.Flatten(),
+#     # tf.keras.layers.Dropout(0.2),
+#     tf.keras.layers.Dense(400, activation='relu'),
+#     tf.keras.layers.Dense(200, activation='relu'),
+#     tf.keras.layers.Dense(5, activation='softmax')
+# ])
+#
+# model.summary()
+# exit()
 
 # Visualizing Data
 names = ['Normal', 'Mild', 'Moderate', 'Severe', 'Proliferate DR']
@@ -202,12 +231,14 @@ for train, test in skf.split(X, y):
         continue
     # Design of CNN Model
     model = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(16, (3, 3), input_shape=(args.image_width, args.image_width, 3), activation='relu', strides=(1, 1), padding="valid"),
-        tf.keras.layers.MaxPooling2D(2, 2),
+        tf.keras.layers.Conv2D(16, (3, 3), input_shape=(args.image_width, args.image_width, 3), activation='relu',
+                               strides=(1, 1), padding="valid"),
+        # tf.keras.layers.MaxPooling2D(2, 2),
 
         tf.keras.layers.Conv2D(32, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
         tf.keras.layers.MaxPooling2D(2, 2),
 
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
         tf.keras.layers.Conv2D(32, (3, 3), activation='relu', strides=(1, 1), padding="valid"),
         tf.keras.layers.MaxPooling2D(2, 2),
         #
@@ -220,18 +251,21 @@ for train, test in skf.split(X, y):
         tf.keras.layers.Flatten(),
         # tf.keras.layers.Dropout(0.2),
         tf.keras.layers.Dense(400, activation='relu'),
-        tf.keras.layers.Dense(250, activation='relu'),
+        tf.keras.layers.Dense(200, activation='relu'),
         tf.keras.layers.Dense(5, activation='softmax')
     ])
 
     if fold_no == 1:
-        print('model', model)
+        model.summary()
 
     # Compiling the model
-    model.compile(optimizer=tf.keras.optimizers.Adam(lr=0.001), loss='sparse_categorical_crossentropy', metrics=['acc'])
+    model.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=args.learning_rate), loss='sparse_categorical_crossentropy',
+                  metrics=['acc'])
+    # model.compile(optimizer=tf.keras.optimizers.Adam(lr=args.learning_rate), loss='sparse_categorical_crossentropy',
+    #               metrics=['acc'])
 
     # Training
-    history = model.fit_generator(aug.flow(X[train], y[train], batch_size=BS),
+    history = model.fit(aug.flow(X[train], y[train], batch_size=BS),
                                   validation_data=(X[test], y[test]),
                                   epochs=args.epoch_limit, verbose=1)
 
